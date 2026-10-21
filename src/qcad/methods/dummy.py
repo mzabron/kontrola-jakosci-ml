@@ -22,5 +22,8 @@ class RandomMethod(AnomalyMethod):
         return Prediction(scores=self._rng.random(n),
                           maps=self._rng.random((n, h, w), dtype=np.float32))
 
+    def model_size(self) -> int:
+        return 0
+
     def get_config(self) -> dict:
         return {"seed": self.seed}

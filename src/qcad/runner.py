@@ -103,6 +103,7 @@ def run_experiment(cfg: dict) -> Path:
             pred_hold = method.predict(holdout.images)
             pred_val = method.predict(val.images)
             pred_test, test_time = _timed(method.predict, test.images)
+            size = method.model_size()
 
             thresholds = {
                 "f1": select_threshold(pred_val.scores, val.labels, "f1"),
@@ -111,7 +112,8 @@ def run_experiment(cfg: dict) -> Path:
             common = {"seed": seed, "category": category,
                       "category_type": config.category_type(category),
                       "n_train": len(train), "fit_time_s": fit_time,
-                      "test_time_per_image_ms": 1000 * test_time / len(test)}
+                      "test_time_per_image_ms": 1000 * test_time / len(test),
+                      "model_size": np.nan if size is None else size}
             for subset, data, pred in (("val", val, pred_val), ("test", test, pred_test)):
                 m = evaluate(pred.scores, data.labels, thresholds=thresholds,
                              maps=pred.maps, masks=data.masks)
@@ -142,7 +144,8 @@ def run_experiment(cfg: dict) -> Path:
 
     summary = summarize(metrics, run_id, method_name)
     summary_path = config.RESULTS_DIR / "summary.csv"
-    summary.to_csv(summary_path, mode="a", index=False, header=not summary_path.exists())
+    previous = pd.read_csv(summary_path) if summary_path.exists() else None
+    pd.concat([previous, summary], ignore_index=True).to_csv(summary_path, index=False)
     print("\ntest set means:\n" + summary.to_string(index=False))
     print(f"\nsaved: {out_dir}")
     return out_dir
@@ -150,7 +153,7 @@ def run_experiment(cfg: dict) -> Path:
 
 SUMMARY_METRICS = ["image_auroc", "image_ap", "pixel_auroc", "au_pro",
                    "f1_f1", "f1_mcc", "f1_balanced_accuracy", "pct_f1", "pct_mcc", "pct_balanced_accuracy",
-                   "fit_time_s", "test_time_per_image_ms"]
+                   "fit_time_s", "test_time_per_image_ms", "model_size"]
 
 
 def summarize(metrics: pd.DataFrame, run_id: str, method_name: str) -> pd.DataFrame:

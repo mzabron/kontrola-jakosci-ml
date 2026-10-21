@@ -18,6 +18,7 @@ def test_random_method_end_to_end(tmp_path, monkeypatch):
     test = metrics[metrics["subset"] == "test"].iloc[0]
     assert 0.0 <= test["image_auroc"] <= 1.0
     assert 0.35 < test["pixel_auroc"] < 0.65
+    assert test["model_size"] == 0
     scores = pd.read_csv(out / "scores.csv")
     assert set(scores["subset"]) == {"holdout", "val", "test"}
     info = json.loads((out / "config.json").read_text(encoding="utf-8"))

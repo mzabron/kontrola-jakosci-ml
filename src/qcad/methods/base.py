@@ -34,5 +34,8 @@ class AnomalyMethod(ABC):
     def score(self, images: np.ndarray) -> np.ndarray:
         return self.predict(images).scores
 
+    def model_size(self) -> int | None:
+        return None
+
     def get_config(self) -> dict:
         return {}

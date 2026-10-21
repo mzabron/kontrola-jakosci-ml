@@ -1,0 +1,13 @@
+method: shallow
+params:
+  detector: mahalanobis
+  covariance: ledoitwolf
+grid:
+  features: [[hog], [lbp, glcm], [color], [hog, lbp, glcm, color]]
+  pca_components: [10, 20, 50, 100, 200]
+select_per: [features]
+categories: all
+tune_seeds: [0]
+seeds: [0]
+train_fraction: 1.0
+tag: mahalanobis

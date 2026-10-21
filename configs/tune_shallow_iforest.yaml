@@ -1,0 +1,14 @@
+method: shallow
+params:
+  detector: iforest
+  n_estimators: 100
+  max_samples: auto
+grid:
+  features: [[hog], [lbp, glcm], [color], [hog, lbp, glcm, color]]
+  pca_components: [10, 20, 50, 100, 200]
+select_per: [features]
+categories: all
+tune_seeds: [0, 1, 2]
+seeds: [0, 1, 2, 3, 4]
+train_fraction: 1.0
+tag: iforest

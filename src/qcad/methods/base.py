@@ -37,5 +37,8 @@ class AnomalyMethod(ABC):
     def model_size(self) -> int | None:
         return None
 
+    def fit_info(self) -> dict:
+        return {}
+
     def get_config(self) -> dict:
         return {}

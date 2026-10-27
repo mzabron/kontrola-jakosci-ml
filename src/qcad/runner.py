@@ -49,6 +49,22 @@ def _timed(fn, *args):
     return out, time.perf_counter() - t0
 
 
+def _accepts(fn, name: str) -> bool:
+    return name in inspect.signature(fn).parameters
+
+
+def build_method(method_name: str, params: dict, seed: int, category: str):
+    cls = METHODS[method_name]
+    extra = {k: v for k, v in (("seed", seed), ("category", category)) if _accepts(cls.__init__, k)}
+    return create_method(method_name, **{**params, **extra})
+
+
+def fit_method(method, train_images: np.ndarray, holdout_images: np.ndarray):
+    if _accepts(method.fit, "holdout"):
+        return method.fit(train_images, holdout=holdout_images)
+    return method.fit(train_images)
+
+
 def _environment(split_file: Path) -> dict:
     env = {"python": platform.python_version(), "platform": platform.platform()}
     try:
@@ -83,7 +99,6 @@ def run_experiment(cfg: dict) -> Path:
     split_file = Path(cfg.get("split_file", config.SPLIT_FILE))
     split = load_split_file(split_file)
 
-    accepts_seed = "seed" in inspect.signature(METHODS[method_name].__init__).parameters
     run_id = f"{datetime.now():%Y%m%d-%H%M%S}_{method_name}" + (f"_{cfg['tag']}" if cfg.get("tag") else "")
     out_dir = config.RESULTS_DIR / "runs" / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -92,14 +107,14 @@ def run_experiment(cfg: dict) -> Path:
     for seed in seeds:
         for category in categories:
             set_seed(seed)
-            method = create_method(method_name, **({**params, "seed": seed} if accepts_seed else params))
+            method = build_method(method_name, params, seed, category)
             method_cfg = method.get_config()
             train = load_subset(category, "train", split, train_fraction)
             holdout = load_subset(category, "holdout", split)
             val = load_subset(category, "val", split)
             test = load_subset(category, "test", split)
 
-            _, fit_time = _timed(method.fit, train.images)
+            _, fit_time = _timed(fit_method, method, train.images, holdout.images)
             pred_hold = method.predict(holdout.images)
             pred_val = method.predict(val.images)
             pred_test, test_time = _timed(method.predict, test.images)
@@ -113,7 +128,7 @@ def run_experiment(cfg: dict) -> Path:
                       "category_type": config.category_type(category),
                       "n_train": len(train), "fit_time_s": fit_time,
                       "test_time_per_image_ms": 1000 * test_time / len(test),
-                      "model_size": np.nan if size is None else size}
+                      "model_size": np.nan if size is None else size, **method.fit_info()}
             for subset, data, pred in (("val", val, pred_val), ("test", test, pred_test)):
                 m = evaluate(pred.scores, data.labels, thresholds=thresholds,
                              maps=pred.maps, masks=data.masks)

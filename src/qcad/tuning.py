@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 import itertools
 import json
 from datetime import datetime
@@ -12,8 +11,7 @@ import yaml
 from . import config
 from .data import load_split_file, load_subset
 from .evaluation import image_ap, image_auroc
-from .methods import METHODS, create_method
-from .runner import set_seed
+from .runner import build_method, fit_method, set_seed
 
 FINAL_KEYS = ("method", "categories", "seeds", "train_fraction", "split_file")
 
@@ -44,7 +42,6 @@ def tune(cfg: dict) -> tuple[Path, list[dict]]:
     seeds = list(cfg.get("tune_seeds", [0]))
     train_fraction = float(cfg.get("train_fraction", 1.0))
     split = load_split_file(Path(cfg.get("split_file", config.SPLIT_FILE)))
-    accepts_seed = "seed" in inspect.signature(METHODS[method_name].__init__).parameters
     combos = expand_grid(grid)
 
     run_id = f"{datetime.now():%Y%m%d-%H%M%S}_{method_name}" + (f"_{cfg['tag']}" if cfg.get("tag") else "")
@@ -54,13 +51,13 @@ def tune(cfg: dict) -> tuple[Path, list[dict]]:
     rows = []
     for category in categories:
         train = load_subset(category, "train", split, train_fraction)
+        holdout = load_subset(category, "holdout", split)
         val = load_subset(category, "val", split)
         for ci, combo in enumerate(combos):
             for seed in seeds:
                 set_seed(seed)
-                params = {**base, **combo, **({"seed": seed} if accepts_seed else {})}
-                method = create_method(method_name, **params)
-                scores = method.fit(train.images).predict(val.images).scores
+                method = build_method(method_name, {**base, **combo}, seed, category)
+                scores = fit_method(method, train.images, holdout.images).predict(val.images).scores
                 rows.append({"combo": ci, **{k: _key(v) for k, v in combo.items()},
                              "seed": seed, "category": category,
                              "category_type": config.category_type(category),

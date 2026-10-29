@@ -1,0 +1,18 @@
+method: ae
+params:
+  latent_dim: 100
+  max_epochs: 100
+  samples_per_epoch: 10000
+  batch_size: 128
+  patience: 30
+  mse_warmup: 5
+grid:
+  loss: [mse, ssim]
+  map_sigma: [0.0, 2.0, 4.0, 8.0]
+  score: [max, mean, top]
+select_per: [loss]
+categories: all
+tune_seeds: [0]
+seeds: [0, 1, 2, 3, 4]
+train_fraction: 1.0
+tag: ae

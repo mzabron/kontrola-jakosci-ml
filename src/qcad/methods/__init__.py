@@ -1,3 +1,4 @@
+from .autoencoder import AutoencoderMethod
 from .base import AnomalyMethod, Prediction
 from .dummy import RandomMethod
 from .shallow import ShallowMethod
@@ -5,6 +6,7 @@ from .shallow import ShallowMethod
 METHODS: dict[str, type[AnomalyMethod]] = {
     RandomMethod.name: RandomMethod,
     ShallowMethod.name: ShallowMethod,
+    AutoencoderMethod.name: AutoencoderMethod,
 }
 
 

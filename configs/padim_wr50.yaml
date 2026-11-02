@@ -1,0 +1,11 @@
+method: padim
+params:
+  backbone: wide_resnet50_2
+  layers: [layer1, layer2, layer3]
+  n_features: 550
+  epsilon: 0.01
+  sigma: 4.0
+categories: all
+seeds: [0, 1, 2, 3, 4]
+train_fraction: 1.0
+tag: wr50

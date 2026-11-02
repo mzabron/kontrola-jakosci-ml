@@ -1,0 +1,12 @@
+method: patchcore
+params:
+  backbone: wide_resnet50_2
+  layers: [layer2, layer3]
+  coreset_ratio: 0.1
+  num_neighbors: 9
+  aggregation: original
+  embed_dim: 1024
+categories: all
+seeds: [0, 1, 2, 3, 4]
+train_fraction: 1.0
+tag: wr50_original

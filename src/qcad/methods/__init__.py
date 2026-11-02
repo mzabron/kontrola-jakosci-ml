@@ -1,12 +1,15 @@
 from .autoencoder import AutoencoderMethod
 from .base import AnomalyMethod, Prediction
 from .dummy import RandomMethod
+from .pretrained import PadimMethod, PatchcoreMethod
 from .shallow import ShallowMethod
 
 METHODS: dict[str, type[AnomalyMethod]] = {
     RandomMethod.name: RandomMethod,
     ShallowMethod.name: ShallowMethod,
     AutoencoderMethod.name: AutoencoderMethod,
+    PadimMethod.name: PadimMethod,
+    PatchcoreMethod.name: PatchcoreMethod,
 }
 
 

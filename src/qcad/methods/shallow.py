@@ -17,6 +17,7 @@ from .. import config
 from .base import AnomalyMethod, Prediction
 
 FEATURES = ("hog", "lbp", "glcm", "color")
+BLOCKS = FEATURES + ("cnn",)
 DETECTORS = ("ocsvm", "iforest", "gmm", "mahalanobis")
 GLCM_PROPS = ("contrast", "homogeneity", "energy", "correlation")
 GLCM_ANGLES = (0.0, np.pi / 4, np.pi / 2, 3 * np.pi / 4)
@@ -81,6 +82,10 @@ def _extract_chunk(fn, images, kwargs) -> np.ndarray:
 
 
 def _compute_block(images: np.ndarray, name: str, n_jobs: int, kwargs: dict) -> np.ndarray:
+    if name == "cnn":
+        from .pretrained import cnn_features
+
+        return cnn_features(images, **kwargs)
     fn = EXTRACTORS[name]
     if n_jobs == 1 or len(images) < 16:
         return _extract_chunk(fn, images, kwargs)
@@ -90,7 +95,7 @@ def _compute_block(images: np.ndarray, name: str, n_jobs: int, kwargs: dict) -> 
 
 def extract_block(images: np.ndarray, name: str, n_jobs: int = -1, use_cache: bool = True,
                   **kwargs) -> np.ndarray:
-    if name not in EXTRACTORS:
+    if name not in BLOCKS:
         raise ValueError(f"unknown feature: {name}")
     images = np.ascontiguousarray(images)
     if not use_cache:
@@ -159,10 +164,11 @@ class ShallowMethod(AnomalyMethod):
                  nu: float = 0.1, gamma_factor: float = 1.0,
                  n_estimators: int = 100, max_samples: str | int = "auto",
                  n_components: int = 1, covariance_type: str = "full", reg_covar: float = 1e-3,
-                 covariance: str = "ledoitwolf", n_jobs: int = -1, feature_cache: bool = True,
-                 seed: int = 0):
+                 covariance: str = "ledoitwolf", cnn_backbone: str = "wide_resnet50_2",
+                 cnn_layers=("layer2", "layer3"), cnn_pretrained: bool = True,
+                 n_jobs: int = -1, feature_cache: bool = True, seed: int = 0):
         features = [features] if isinstance(features, str) else list(features)
-        unknown = [f for f in features if f not in FEATURES]
+        unknown = [f for f in features if f not in BLOCKS]
         if unknown or not features:
             raise ValueError(f"unknown features: {unknown}")
         if detector not in DETECTORS:
@@ -188,6 +194,9 @@ class ShallowMethod(AnomalyMethod):
         self.covariance_type = covariance_type
         self.reg_covar = reg_covar
         self.covariance = covariance
+        self.cnn_backbone = cnn_backbone
+        self.cnn_layers = list(cnn_layers)
+        self.cnn_pretrained = cnn_pretrained
         self.n_jobs = n_jobs
         self.feature_cache = feature_cache
         self.seed = seed
@@ -198,6 +207,8 @@ class ShallowMethod(AnomalyMethod):
             "lbp": {"scales": tuple(self.lbp_scales), "grid": self.grid},
             "glcm": {"levels": self.glcm_levels, "distances": tuple(self.glcm_distances), "grid": self.grid},
             "color": {"bins": self.color_bins, "grid": self.grid},
+            "cnn": {"backbone": self.cnn_backbone, "layers": tuple(self.cnn_layers),
+                    "pretrained": self.cnn_pretrained},
         }[name]
 
     def extract(self, images: np.ndarray) -> list[np.ndarray]:
@@ -270,6 +281,9 @@ class ShallowMethod(AnomalyMethod):
                     "reg_covar": self.reg_covar},
             "mahalanobis": {"covariance": self.covariance},
         }[self.detector])
+        if "cnn" in self.features:
+            cfg.update(cnn_backbone=self.cnn_backbone, cnn_layers=self.cnn_layers,
+                       cnn_pretrained=self.cnn_pretrained)
         if hasattr(self, "block_dims_"):
             cfg["block_dims"] = self.block_dims_
         if hasattr(self, "gamma_"):

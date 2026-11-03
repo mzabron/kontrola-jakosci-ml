@@ -5,7 +5,7 @@ import torch
 
 from qcad import config
 from qcad.methods import create_method
-from qcad.methods.pretrained import fit_gaussians, mahalanobis, original_embedding
+from qcad.methods.pretrained import BACKBONES, cnn_features, fit_gaussians, mahalanobis, original_embedding
 from qcad.runner import run_experiment
 
 from .conftest import requires_data, requires_split
@@ -89,6 +89,16 @@ def test_original_embedding_weights_layers_equally():
     emb = original_embedding(feats, ["layer2", "layer3"], 4)
     assert emb.shape == (1, 4, 2, 2)
     assert torch.allclose(emb[0, :, 0, 0], torch.tensor([1.0, 1.0, 0.0, 0.0]))
+
+
+def test_cnn_block_in_shallow():
+    feats = cnn_features(_images(3), backbone="resnet18", pretrained=False)
+    assert feats.shape == (3, 128 + 256) and feats.dtype == np.float32
+    m = create_method("shallow", features=["cnn"], detector="mahalanobis", pca_components=2,
+                      cnn_backbone="resnet18", cnn_pretrained=False, n_jobs=1).fit(_images(6))
+    assert m.predict(_images(2, seed=1)).scores.shape == (2,)
+    assert m.get_config()["block_dims"] == {"cnn": [384, 2]}
+    assert set(BACKBONES) == {"resnet18", "wide_resnet50_2"}
 
 
 @requires_data

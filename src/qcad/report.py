@@ -9,7 +9,8 @@ from . import config
 
 DETECTOR_NAMES_PL = {"ocsvm": "OC-SVM", "iforest": "Isolation Forest", "gmm": "GMM", "mahalanobis": "Mahalanobis"}
 FEATURE_SET_NAMES_PL = {"hog": "HOG", "lbp-glcm": "LBP + GLCM", "color": "kolor",
-                        "hog-lbp-glcm-color": "HOG + LBP + GLCM + kolor"}
+                        "hog-lbp-glcm-color": "HOG + LBP + GLCM + kolor", "cnn": "CNN (WideResNet-50)"}
+HANDCRAFTED = ("hog", "lbp-glcm", "color", "hog-lbp-glcm-color")
 GROUP_NAMES_PL = {"texture": "tekstury", "object": "obiekty", "all": "łącznie"}
 COVARIANCE_NAMES_PL = {"full": "pełna", "diag": "diagonalna", "ledoitwolf": "Ledoit-Wolf", "empirical": "empiryczna"}
 
@@ -179,6 +180,7 @@ def write_shallow_tables(out_dir: Path | None = None) -> list[Path]:
     out_dir = Path(out_dir or config.TABLES_DIR)
     out_dir.mkdir(parents=True, exist_ok=True)
     metrics = collect_shallow_runs()
+    metrics = metrics[metrics["features"].isin(HANDCRAFTED)] if not metrics.empty else metrics
     if metrics.empty:
         raise SystemExit("no shallow runs found")
     ablation = ablation_table(metrics)

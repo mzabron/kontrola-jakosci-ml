@@ -7,6 +7,7 @@ import platform
 import random
 import subprocess
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -90,7 +91,63 @@ def _environment(split_file: Path) -> dict:
     return env
 
 
+def fraction_tag(fraction: float) -> str:
+    return f"f{round(100 * fraction):03d}"
+
+
+def expand_fractions(cfg: dict) -> list[dict]:
+    fractions = cfg.get("train_fraction", 1.0)
+    if not isinstance(fractions, (list, tuple)):
+        return [cfg]
+    out = []
+    for f in fractions:
+        tag = "_".join(t for t in (cfg.get("tag"), fraction_tag(float(f))) if t)
+        out.append({**cfg, "train_fraction": float(f), "tag": tag})
+    return out
+
+
+COST_PARAMS = {"shallow": {"feature_cache": False, "n_jobs": 1}, "ae": {"model_cache": False}}
+
+
+def cost_config(cfg: dict) -> dict:
+    params = {**(cfg.get("params") or {}), **COST_PARAMS.get(cfg["method"], {})}
+    tag = "_".join(t for t in (cfg.get("tag"), "cost") if t)
+    return {**cfg, "params": params, "seeds": list(cfg.get("seeds", [0]))[:1],
+            "train_fraction": 1.0, "cost": True, "threads": 1, "tag": tag}
+
+
+def is_cost_run(info: dict) -> bool:
+    return bool(info.get("config", {}).get("cost", False))
+
+
+@contextmanager
+def thread_limit(threads: int | None):
+    if not threads:
+        yield
+        return
+    from threadpoolctl import threadpool_limits
+
+    try:
+        import torch
+
+        previous = torch.get_num_threads()
+        torch.set_num_threads(threads)
+    except ImportError:
+        torch = None
+    try:
+        with threadpool_limits(limits=threads):
+            yield
+    finally:
+        if torch is not None:
+            torch.set_num_threads(previous)
+
+
 def run_experiment(cfg: dict) -> Path:
+    with thread_limit(cfg.get("threads")):
+        return _run_experiment(cfg)
+
+
+def _run_experiment(cfg: dict) -> Path:
     method_name = cfg["method"]
     params = dict(cfg.get("params") or {})
     categories = config.CATEGORIES if cfg.get("categories", "all") == "all" else tuple(cfg["categories"])

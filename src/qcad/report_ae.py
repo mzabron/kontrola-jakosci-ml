@@ -13,7 +13,7 @@ from .data import load_split_file, load_subset
 from .eda import TEXT_PRIMARY, TEXT_WIDTH_IN, _save, _show, setup_style
 from .methods.autoencoder import AUGMENTATIONS, augment, random_crops
 from .report import GROUP_NAMES_PL, _cell, _num
-from .runner import build_method, fit_method
+from .runner import build_method, fit_method, is_cost_run
 
 LOSS_NAMES_PL = {"mse": "MSE", "ssim": "SSIM"}
 SCORE_NAMES_PL = {"max": "maksimum", "mean": "średnia", "top": "średnia z 1\\% największych"}
@@ -28,7 +28,7 @@ def collect_ae_runs(runs_dir: Path | None = None) -> tuple[pd.DataFrame, dict]:
         if not info_path.exists() or not (path / "metrics.csv").exists():
             continue
         info = json.loads(info_path.read_text(encoding="utf-8"))
-        if float(info.get("train_fraction", 1.0)) != 1.0:
+        if float(info.get("train_fraction", 1.0)) != 1.0 or is_cost_run(info):
             continue
         latest[(info["config"].get("params") or {}).get("loss", "mse")] = (path, info)
     frames = [pd.read_csv(path / "metrics.csv").assign(loss=loss, run_id=path.name)

@@ -14,7 +14,7 @@ from .data import load_split_file, load_subset
 from .eda import TEXT_PRIMARY, TEXT_WIDTH_IN, _save, _show, setup_style
 from .report import (DETECTOR_NAMES_PL, FEATURE_SET_NAMES_PL, GROUP_NAMES_PL, HANDCRAFTED, _cell, _num,
                      collect_shallow_runs, hyperparameter_table, latex_hyperparameter_table)
-from .runner import build_method, fit_method
+from .runner import build_method, fit_method, is_cost_run
 
 VARIANT_NAMES_PL = {"padim_r18": "PaDiM R18", "padim_wr50": "PaDiM WR50",
                     "patchcore_concat": "PatchCore (anomalib)", "patchcore_original": "PatchCore"}
@@ -41,7 +41,7 @@ def collect_tl_runs(runs_dir: Path | None = None) -> tuple[pd.DataFrame, dict]:
             continue
         info = json.loads(info_path.read_text(encoding="utf-8"))
         variant = run_variant(info)
-        if variant is None or float(info.get("train_fraction", 1.0)) != 1.0:
+        if variant is None or float(info.get("train_fraction", 1.0)) != 1.0 or is_cost_run(info):
             continue
         latest[variant] = (path, info)
     frames = [pd.read_csv(path / "metrics.csv").assign(variant=v, run_id=path.name)

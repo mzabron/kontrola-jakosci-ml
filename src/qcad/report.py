@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from . import config
+from .runner import is_cost_run
 
 DETECTOR_NAMES_PL = {"ocsvm": "OC-SVM", "iforest": "Isolation Forest", "gmm": "GMM", "mahalanobis": "Mahalanobis"}
 FEATURE_SET_NAMES_PL = {"hog": "HOG", "lbp-glcm": "LBP + GLCM", "color": "kolor",
@@ -24,7 +25,7 @@ def collect_shallow_runs(runs_dir: Path | None = None) -> pd.DataFrame:
             continue
         info = json.loads(info_path.read_text(encoding="utf-8"))
         params = info["config"].get("params") or {}
-        if float(info.get("train_fraction", 1.0)) != 1.0:
+        if float(info.get("train_fraction", 1.0)) != 1.0 or is_cost_run(info):
             continue
         key = (params.get("detector", "ocsvm"), "-".join(params.get("features", ())))
         latest[key] = (path, info)

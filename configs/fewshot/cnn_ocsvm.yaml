@@ -1,0 +1,11 @@
+method: shallow
+params:
+  detector: ocsvm
+  features: [cnn]
+  pca_components: null
+  nu: 0.01
+  gamma_factor: 4.0
+categories: all
+seeds: [0]
+train_fraction: [0.1, 0.25, 0.5]
+tag: cnn_ocsvm_cnn

@@ -1,0 +1,11 @@
+method: shallow
+params:
+  detector: ocsvm
+  features: [hog]
+  pca_components: null
+  nu: 0.05
+  gamma_factor: 1.0
+categories: all
+seeds: [0]
+train_fraction: [0.1, 0.25, 0.5]
+tag: ocsvm_hog

@@ -1,0 +1,12 @@
+method: shallow
+params:
+  detector: gmm
+  reg_covar: 0.001
+  features: [lbp, glcm]
+  pca_components: 200
+  n_components: 3
+  covariance_type: diag
+categories: all
+seeds: [0, 1, 2, 3, 4]
+train_fraction: [0.1, 0.25, 0.5]
+tag: gmm_lbp-glcm

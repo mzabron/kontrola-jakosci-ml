@@ -1,0 +1,11 @@
+method: shallow
+params:
+  detector: iforest
+  n_estimators: 100
+  max_samples: auto
+  features: [cnn]
+  pca_components: 200
+categories: all
+seeds: [0, 1, 2, 3, 4]
+train_fraction: [0.1, 0.25, 0.5]
+tag: cnn_iforest_cnn

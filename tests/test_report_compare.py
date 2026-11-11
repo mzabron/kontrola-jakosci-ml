@@ -3,7 +3,8 @@ import pandas as pd
 
 from qcad import config
 from qcad.report_compare import (category_rows, category_table, group_table, label_positions, latex_group_table,
-                                 latex_size_table, representatives, size_edges, size_table)
+                                 latex_size_table, latex_threshold_table, representatives, size_edges, size_table,
+                                 threshold_table)
 
 
 def _methods(tmp_path):
@@ -62,6 +63,21 @@ def test_size_table(tmp_path):
     assert table.loc["ocsvm_hog"].tolist() == [0.0, 0.0, 0.0]
     tex = latex_size_table(table, methods, (lo, hi))
     assert "małe" in tex and "duże" in tex and r"\textbf{1,000}" in tex
+
+
+def test_threshold_table():
+    methods = {}
+    for key, family, mcc in (("ocsvm_hog", "hand", 0.4), ("patchcore_original", "pretrained", 0.8)):
+        rows = [{"seed": s, "subset": subset, "f1_recall": 0.9, "f1_specificity": 0.5, "f1_mcc": mcc + 0.1 * s,
+                 "pct_recall": 0.6, "pct_specificity": 0.9, "pct_mcc": mcc}
+                for s in (0, 1) for subset in ("val", "test")]
+        methods[key] = {"name": key, "family": family, "metrics": pd.DataFrame(rows)}
+    table = threshold_table(methods).set_index("method")
+    assert abs(table.loc["patchcore_original", "f1_mcc"] - 0.85) < 1e-9
+    assert table.loc["ocsvm_hog", "pct_specificity"] == 0.9
+    tex = latex_threshold_table(table.reset_index())
+    assert "99. percentyl" in tex and r"\textbf{0,850}" in tex and r"\textbf{0,800}" in tex
+    assert tex.count(r"\midrule") == 2
 
 
 def test_label_positions_spread_close_points():

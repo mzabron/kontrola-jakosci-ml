@@ -21,6 +21,8 @@ FAMILY_NAMES_PL = {"hand": "cechy projektowane ręcznie", "ae": "autoenkoder", "
 FAMILY_COLORS = {"hand": "#eb6834", "ae": "#8e5bd0", "cnn": "#1baf7a", "pretrained": "#2a78d6"}
 TL_NAMES_PL = {"padim_r18": "PaDiM R18", "padim_wr50": "PaDiM WR50", "patchcore_original": "PatchCore"}
 SIZE_NAMES_PL = ("małe", "średnie", "duże")
+THRESHOLD_RULES = ("f1", "pct")
+THRESHOLD_METRICS = ("recall", "specificity", "mcc")
 GRAY_WEIGHTS = np.array([0.299, 0.587, 0.114])
 
 
@@ -86,6 +88,18 @@ def group_table(methods: dict[str, dict]) -> pd.DataFrame:
             row[f"image_auroc_{group}"] = _seed_mean(sel, "image_auroc")
         row["gap"] = row["image_auroc_texture"] - row["image_auroc_object"]
         row["au_pro"] = _seed_mean(test, "au_pro") if test["au_pro"].notna().any() else np.nan
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def threshold_table(methods: dict[str, dict]) -> pd.DataFrame:
+    rows = []
+    for key, m in methods.items():
+        test = m["metrics"][m["metrics"]["subset"] == "test"]
+        row = {"method": key, "name": m["name"], "family": m["family"]}
+        for rule in THRESHOLD_RULES:
+            for metric in THRESHOLD_METRICS:
+                row[f"{rule}_{metric}"] = _seed_mean(test, f"{rule}_{metric}")
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -186,6 +200,25 @@ def latex_group_table(table: pd.DataFrame) -> str:
         pro = "--" if pd.isna(r["au_pro"]) else _num(r["au_pro"])
         lines.append(" & ".join([r["name"], _num(r["image_auroc_texture"]), _num(r["image_auroc_object"]),
                                  _num(r["image_auroc_all"]), _signed(r["gap"]), pro]) + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    return "\n".join(lines) + "\n"
+
+
+def latex_threshold_table(table: pd.DataFrame) -> str:
+    heads = r"\thead{czułość} & \thead{swoistość} & \thead{MCC}"
+    lines = [r"\setlength{\tabcolsep}{4pt}", r"\begin{tabular}{l r r r r r r}", r"\toprule",
+             r" & \multicolumn{3}{c}{\thead{Próg z~walidacji\\(maks. F1)}} & "
+             r"\multicolumn{3}{c}{\thead{Próg z~obrazów poprawnych\\(99. percentyl)}} \\",
+             r"\cmidrule(lr){2-4} \cmidrule(lr){5-7}", rf"\thead{{Metoda}} & {heads} & {heads} \\", r"\midrule"]
+    cols = [f"{rule}_{metric}" for rule in THRESHOLD_RULES for metric in THRESHOLD_METRICS]
+    best = {c: table[c].round(3).max() for c in cols if c.endswith("mcc")}
+    previous = None
+    for _, r in table.iterrows():
+        if previous is not None and r["family"] != previous:
+            lines.append(r"\midrule")
+        previous = r["family"]
+        cells = [_cell(r[c], c in best and round(r[c], 3) == best[c]) for c in cols]
+        lines.append(" & ".join([r["name"], *cells]) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}"]
     return "\n".join(lines) + "\n"
 
@@ -304,17 +337,20 @@ def write_compare_report(tables_dir: Path | None = None, figures_dir: Path | Non
         raise SystemExit("no runs found")
     keys = representatives(methods)
     groups = group_table(methods)
+    thresholds = threshold_table(methods)
     categories = category_table(methods, keys)
     defects = defect_table(methods, keys)
     areas = defect_areas()
     sizes = size_table(methods, keys, areas)
     edges = size_edges(areas)
     brightness = brightness_table()
-    frames = {"porownanie_grupy.csv": (groups, False), "porownanie_kategorie.csv": (categories, True),
+    frames = {"porownanie_grupy.csv": (groups, False), "porownanie_progi.csv": (thresholds, False),
+              "porownanie_kategorie.csv": (categories, True),
               "porownanie_typy_defektow.csv": (defects, True),
               "porownanie_wielkosc.csv": (sizes.assign(edge_low=edges[0], edge_high=edges[1]), True),
               "jasnosc.csv": (brightness, False)}
     texts = {"tab_porownanie_grupy.tex": latex_group_table(groups),
+             "tab_porownanie_progi.tex": latex_threshold_table(thresholds),
              "tab_porownanie_wielkosc.tex": latex_size_table(sizes, methods, edges)}
     saved = []
     for name, (df, index) in frames.items():
